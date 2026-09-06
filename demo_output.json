@@ -1,0 +1,27 @@
+{
+  "manuscript": "data/sample.txt",
+  "status": "placeholder",
+  "note": "This is a placeholder cache file. Real output will be generated once backend.py is implemented.",
+  "issues": [
+    {
+      "id": 1,
+      "type": "physical_description_contradiction",
+      "character": "Elizabeth Bennet",
+      "attribute": "eye_colour",
+      "occurrences": [
+        {
+          "chapter": 2,
+          "excerpt": "Elizabeth Bennet had listened with a smile in her dark, expressive eyes",
+          "value": "dark"
+        },
+        {
+          "chapter": 3,
+          "excerpt": "Elizabeth Bennet raised her blue eyes to observe him more closely",
+          "value": "blue"
+        }
+      ],
+      "confidence": "high",
+      "description": "Elizabeth Bennet's eye colour is described as 'dark' in Chapter 2 and 'blue' in Chapter 3."
+    }
+  ]
+}
