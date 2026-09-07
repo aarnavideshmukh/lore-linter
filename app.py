@@ -1,355 +1,215 @@
 import streamlit as st
+import requests
+import html
 import time
 
-# ==========================================
-# 1. PAGE CONFIGURATION
-# ==========================================
+# -----------------------------------------------------------------------------
+# 1. PAGE SETUP
+# -----------------------------------------------------------------------------
 st.set_page_config(
-    page_title="Lore Linter",
-    page_icon="📖",
+    page_title="Lore Linter — The Empathetic Logic Engine",
+    page_icon="📜",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
-# ==========================================
-# 2. THE AGED BROWN PAPER CSS
-# ==========================================
-st.markdown("""
+# -----------------------------------------------------------------------------
+# 2. SESSION STATE
+# -----------------------------------------------------------------------------
+if "analysis_data" not in st.session_state:
+    st.session_state["analysis_data"] = None
+if "job_id" not in st.session_state:
+    st.session_state["job_id"] = None
+if "api_error" not in st.session_state:
+    st.session_state["api_error"] = None
+
+# -----------------------------------------------------------------------------
+# 3. LITERARY LOGIC CSS (Keep your beautiful design)
+# -----------------------------------------------------------------------------
+DARK_ACADEMIA_CSS = """
 <style>
-    /* --- BOLD PALETTE --- */
-    :root {
-        --brown-beige: #D9C9A3;        /* Brownish Beige Base */
-        --brown-beige-dark: #C4B18B;   /* Darker brown for panels/sidebar */
-        --ink-black: #2A2A2A;          /* Typewriter Ink */
-        --bold-amber: #A64B1E;         /* Amber-Red (Slightly darker) */
-        --bold-amber-deep: #7A3612;    /* Darker Amber */
-        --olive-green: #5C6B3C;        /* Bold Olive Green */
-        --olive-deep: #3E4A28;         /* Darker Olive */
-    }
-
-    /* --- MAIN BACKGROUND (Aged Parchment) --- */
-    .stApp {
-        background-color: var(--brown-beige);
-        /* Layered textures for aged paper: Vignette, Fiber Lines, and Grain */
-        background-image: 
-            radial-gradient(circle at 50% 50%, transparent 60%, rgba(90, 60, 30, 0.4) 100%),
-            repeating-linear-gradient(45deg, rgba(122, 54, 18, 0.02) 0px, rgba(122, 54, 18, 0.02) 1px, transparent 1px, transparent 6px),
-            repeating-linear-gradient(-45deg, rgba(62, 74, 40, 0.02) 0px, rgba(62, 74, 40, 0.02) 1px, transparent 1px, transparent 7px),
-            url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.15'/%3E%3C/svg%3E");
-        color: var(--ink-black);
-        font-family: 'Courier New', Courier, monospace;
-    }
-
-    /* --- TYPOGRAPHY (Typewriter Ink) --- */
-    h1, h2, h3, h4, h5, h6 {
-        font-family: 'Courier New', Courier, monospace;
-        color: var(--ink-black);
-        font-weight: 900;
-        text-transform: uppercase;
-        letter-spacing: 2px;
-        border-bottom: 3px solid var(--bold-amber);
-        padding-bottom: 10px;
-        margin-top: 20px;
-    }
-    
-    p, label, span, div {
-        font-family: 'Courier New', Courier, monospace;
-        color: var(--ink-black);
-    }
-
-    /* --- TOP NAVIGATION BAR --- */
-    .nav-bar {
-        background-color: var(--olive-green);
-        padding: 15px;
-        border-bottom: 4px solid var(--bold-amber);
-        margin-bottom: 20px;
-        text-align: center;
-    }
-    .nav-bar a {
-        color: #F4ECD8; /* Light beige text on top bar */
-        text-decoration: none;
-        font-weight: bold;
-        font-size: 1.2em;
-        margin: 0 25px;
-        padding: 10px;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        transition: all 0.3s;
-    }
-    .nav-bar a:hover {
-        color: var(--bold-amber);
-        border-bottom: 3px solid var(--bold-amber);
-    }
-
-    /* --- SIDEBAR (Aged Brown Paper) --- */
-    section[data-testid="stSidebar"] {
-        background-color: var(--brown-beige-dark);
-        border-right: 5px solid var(--olive-green);
-        background-image: 
-            radial-gradient(circle at 50% 50%, transparent 60%, rgba(90, 60, 30, 0.3) 100%),
-            url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.2'/%3E%3C/svg%3E");
-    }
-    
-    .file-label {
-        border-left: 5px solid var(--bold-amber);
-        padding-left: 15px;
-        margin-bottom: 10px;
-        background: rgba(122, 54, 18, 0.2);
-        font-weight: bold;
-        font-family: 'Courier New', monospace;
-    }
-
-    /* --- TEXT AREA (Writing Pad) --- */
-    .stTextArea textarea {
-        background-color: #F3E9D2; /* Lighter paper for writing */
-        color: var(--ink-black);
-        border: 3px solid var(--bold-amber) !important;
-        border-radius: 2px;
-        font-family: 'Courier New', Courier, monospace;
-        font-size: 1.3em;
-        line-height: 1.8;
-        box-shadow: inset 5px 5px 10px rgba(90, 60, 30, 0.1);
-    }
-    
-    .stTextArea textarea:focus {
-        border-color: var(--olive-green) !important;
-        box-shadow: 0 0 10px rgba(92, 107, 60, 0.3);
-    }
-
-    /* --- FALLACY HIGHLIGHTS (Amber Ribbons) --- */
-    .flagged-text {
-        text-decoration: underline wavy var(--bold-amber) 3px;
-        background-color: rgba(166, 75, 30, 0.2);
-        padding: 2px 4px;
-        font-weight: bold;
-        cursor: pointer;
-    }
-
-    /* --- BUTTONS (Amber-Red Wax Seal) --- */
-    .stButton>button {
-        background-color: var(--bold-amber);
-        color: #F4ECD8;
-        border: 3px solid var(--bold-amber-deep);
-        border-radius: 2px;
-        font-family: 'Courier New', Courier, monospace;
-        font-size: 1.2em;
-        font-weight: 900;
-        letter-spacing: 2px;
-        text-transform: uppercase;
-        box-shadow: 3px 3px 0px var(--ink-black);
-        transition: all 0.2s;
-        width: 100%;
-    }
-    .stButton>button:hover {
-        background-color: var(--olive-green);
-        border-color: var(--olive-deep);
-        box-shadow: 1px 1px 0px var(--ink-black);
-        transform: translate(2px, 2px);
-    }
-
-    /* --- INSPECTOR PANELS (Olive & Amber Borders) --- */
-    .editorial-note {
-        background-color: rgba(243, 233, 210, 0.9);
-        border-left: 6px solid var(--olive-green);
-        border-bottom: 3px solid var(--bold-amber);
-        padding: 20px;
-        margin-bottom: 20px;
-        box-shadow: 3px 3px 0px rgba(90, 60, 30, 0.3);
-    }
-    .editorial-note strong {
-        color: var(--bold-amber-deep);
-        font-size: 1.2em;
-    }
-
-    /* --- ASTROLABE DIAL (Bold Olive to Amber) --- */
-    .dial-container {
-        display: flex;
-        justify-content: center;
-        margin-bottom: 20px;
-    }
-    
-    .dial {
-        width: 180px;
-        height: 180px;
-        border-radius: 50%;
-        background: conic-gradient(
-            from 180deg,
-            var(--olive-green) 0%, 
-            var(--bold-amber) 100%
-        );
-        position: relative;
-        border: 6px solid var(--ink-black);
-        box-shadow: 5px 5px 0px rgba(90, 60, 30, 0.3);
-    }
-    
-    .dial-inner {
-        position: absolute;
-        top: 20px; left: 20px; right: 20px; bottom: 20px;
-        background-color: var(--brown-beige);
-        border-radius: 50%;
-        border: 3px solid var(--olive-green);
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-    }
-    
-    .score-text {
-        font-size: 3em;
-        font-family: 'Courier New', monospace;
-        font-weight: 900;
-        color: var(--ink-black);
-        margin: 0;
-    }
-    
-    .score-label {
-        font-size: 1em;
-        color: var(--bold-amber-deep);
-        text-transform: uppercase;
-        font-weight: bold;
-        letter-spacing: 2px;
-    }
-
-    /* --- SUCCESS (Olive Green) --- */
-    .resolved-badge {
-        color: var(--olive-deep);
-        border: 3px solid var(--olive-green);
-        background-color: rgba(92, 107, 60, 0.2);
-        padding: 8px;
-        display: inline-block;
-        margin-top: 10px;
-        font-weight: 900;
-    }
-
-    /* --- DIVIDERS (Amber Red) --- */
-    hr {
-        border: none;
-        height: 3px;
-        background-color: var(--bold-amber);
-        margin: 30px 0;
-    }
+@import url('https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400&display=swap');
+:root {
+    --paper-bg: #D9C9A3; --paper-dark: #C7B589; --charcoal: #2A2A2A;
+    --amber-red: #A64B1E; --olive-green: #5C6B3C; --sage-green: #6A7E54;
+    --wax-gold: #C29B38;
+}
+html, body, [class*="css"], .stApp {
+    font-family: 'Courier Prime', 'Courier New', monospace !important;
+    background-color: var(--paper-bg) !important; color: var(--charcoal) !important;
+}
+.stApp::before {
+    content: ""; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none; z-index: 1;
+}
+header[data-testid="stHeader"] { background: transparent !important; }
+#MainMenu, footer { visibility: hidden; }
+.header-banner {
+    border-bottom: 2px solid var(--amber-red); padding: 6px 0 16px 0; margin-bottom: 24px;
+    display: flex; justify-content: space-between; align-items: baseline;
+}
+.header-title {
+    font-size: 1.85rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--amber-red); margin: 0;
+}
+.header-subtitle { font-size: 0.85rem; color: var(--olive-green); font-style: italic; letter-spacing: 0.05em; }
+.nav-card {
+    background-color: rgba(199, 181, 137, 0.45); border: 1px solid var(--olive-green); border-radius: 2px;
+    padding: 16px; margin-bottom: 16px; box-shadow: 2px 3px 6px rgba(42, 42, 42, 0.08);
+}
+.nav-heading {
+    font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em;
+    color: var(--olive-green); border-bottom: 1px dashed var(--olive-green); padding-bottom: 6px; margin-bottom: 12px;
+}
+div[data-baseweb="textarea"] {
+    background-color: #E2D5B5 !important; border: 2px solid var(--olive-green) !important;
+    border-radius: 2px !important; box-shadow: inset 2px 2px 8px rgba(42, 42, 42, 0.15) !important;
+}
+div[data-baseweb="textarea"] textarea {
+    font-family: 'Courier Prime', 'Courier New', monospace !important; font-size: 1.02rem !important;
+    line-height: 1.8 !important; color: var(--charcoal) !important; background-color: transparent !important;
+}
+div.stButton > button {
+    font-family: 'Courier Prime', monospace !important; font-weight: 700 !important; font-size: 0.95rem !important;
+    letter-spacing: 0.1em !important; text-transform: uppercase !important; color: #FDFBF7 !important;
+    background: linear-gradient(135deg, #943A14 0%, #A64B1E 60%, #C86A32 100%) !important;
+    border: 2px solid var(--wax-gold) !important; border-radius: 3px !important; padding: 12px 24px !important;
+    box-shadow: 3px 4px 0px var(--charcoal), 0 5px 12px rgba(166, 75, 30, 0.35) !important;
+}
+div.stButton > button:hover { transform: translate(-1px, -1px) !important; }
+.editorial-card {
+    background-color: #E2D5B5; border-radius: 2px; padding: 14px 16px; margin-bottom: 14px;
+    box-shadow: 2px 3px 8px rgba(42, 42, 42, 0.08); border-left: 5px solid var(--amber-red);
+}
+.editorial-card.low-severity { border-left: 5px solid var(--olive-green); }
+.card-header { display: flex; justify-content: space-between; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
+.card-type { color: var(--amber-red); }
+.card-location { color: var(--olive-green); }
+.card-quote { font-style: italic; font-size: 0.88rem; background: rgba(199, 181, 137, 0.5); padding: 6px 10px; border-left: 2px solid var(--charcoal); margin: 8px 0; }
+.card-explanation { font-size: 0.85rem; line-height: 1.5; margin-bottom: 8px; }
+.card-suggestion { font-size: 0.82rem; color: var(--olive-green); border-top: 1px dashed var(--olive-green); padding-top: 6px; }
+.astrolabe-wrapper { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 18px 0; }
+.astrolabe-outer-ring { width: 140px; height: 140px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(42, 42, 42, 0.15); border: 2px solid var(--wax-gold); }
+.astrolabe-inner-core { width: 110px; height: 110px; background-color: var(--paper-bg); border-radius: 50%; border: 1px dashed var(--olive-green); display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.astrolabe-score { font-size: 1.8rem; font-weight: 700; color: var(--charcoal); line-height: 1; }
+.astrolabe-subtext { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--olive-green); margin-top: 4px; }
 </style>
-""", unsafe_allow_html=True)
+"""
+st.markdown(DARK_ACADEMIA_CSS, unsafe_allow_html=True)
 
-
-# ==========================================
-# 3. EASY NAVIGATION BAR
-# ==========================================
+# -----------------------------------------------------------------------------
+# 4. HEADER
+# -----------------------------------------------------------------------------
 st.markdown("""
-<div class="nav-bar">
-    <a href="#">Home</a>
-    <a href="#">Manuscript</a>
-    <a href="#">Fallacy Index</a>
-    <a href="#">Inspector</a>
+<div class="header-banner">
+    <div>
+        <div class="header-title">Lore Linter</div>
+        <div class="header-subtitle">Chronicle Validation & Argument Symmetry Desk</div>
+    </div>
+    <div style="font-size: 0.8rem; color: var(--charcoal); letter-spacing: 0.08em;">STUDIO EDITION • 02:00 AM MODE</div>
 </div>
 """, unsafe_allow_html=True)
 
+# -----------------------------------------------------------------------------
+# 5. LAYOUT
+# -----------------------------------------------------------------------------
+col_nav, col_editor, col_inspector = st.columns([1.1, 2.5, 1.4], gap="medium")
 
-# ==========================================
-# 4. SIDEBAR (Easy to find)
-# ==========================================
-with st.sidebar:
-    st.markdown("## 📖 Lore Linter")
-    st.caption("Logical Fallacy Detector")
-    
-    st.markdown("### 📂 Manuscripts")
-    st.markdown('<div class="file-label">Chapter I: The Arrival</div>', unsafe_allow_html=True)
-    st.markdown('<div class="file-label">Chapter II: The Betrayal</div>', unsafe_allow_html=True)
-    st.markdown('<div class="file-label">Chapter III: The Ashes</div>', unsafe_allow_html=True)
-    
-    st.markdown("---")
-    st.markdown("### 🔍 Detected Fallacies")
-    st.markdown('<div class="file-label" style="border-left-color: var(--olive-green);">💡 Causal Slip</div>', unsafe_allow_html=True)
-    st.markdown('<div class="file-label" style="border-left-color: var(--bold-amber);">🚩 Straw Man</div>', unsafe_allow_html=True)
-    
-    st.markdown("---")
-    st.markdown("### ⚙️ Settings")
-    st.text_input("API Key", type="password", placeholder="Optional...")
-    st.caption("Typewriter Mode: ACTIVE")
+# Left Panel
+with col_nav:
+    st.markdown('<div class="nav-card"><div class="nav-heading">Manuscript Index</div><div class="nav-item">📜 Act I: The Salt Flats</div><div class="nav-item" style="font-weight: bold; color: #A64B1E;">🖋 Act II: The Sovereign</div><div class="nav-item">📜 Act III: The Broken Covenant</div></div>', unsafe_allow_html=True)
+    st.checkbox("Chapter 1", value=True)
+    st.checkbox("Chapter 2", value=True)
+    st.checkbox("Chapter 3", value=False)
 
-
-# ==========================================
-# 5. CENTRAL DRAFTING DESK
-# ==========================================
-col1, col2 = st.columns([2.5, 1])
-
-with col1:
-    st.markdown("## ✍️ The Drafting Desk")
+# Center Workspace
+with col_editor:
+    st.markdown('<div class="nav-heading">Folio Drafting Canvas</div>', unsafe_allow_html=True)
     
-    # The Manuscript Text (Old Paper Style)
-    st.markdown("""
-    <div style="background-color: #F3E9D2; border: 3px solid var(--olive-green); padding: 40px; box-shadow: inset 5px 5px 15px rgba(90, 60, 30, 0.15);">
-        <p style="font-size: 1.3em; line-height: 2.2; color: var(--ink-black);">
-            The knight rode into the <span class="flagged-text">city of Eldoria</span> after the war. 
-            He realized his brother was the king, which meant he had <span class="flagged-text">betrayed his own family</span>. 
-            However, in the previous chapter, his brother was explicitly stated to be dead.
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
+    # Get user text
+    manuscript_text = st.text_area("Manuscript", height=260, label_visibility="collapsed")
     
-    st.markdown("<br>", unsafe_allow_html=True)
-    
-    # Actual Input
-    st.text_area("Draft Display", height=250, label_visibility="collapsed")
-    
-    st.markdown("<br>", unsafe_allow_html=True)
-    
-    # The Bold Button
-    if st.button("🔥 Analyze Manuscript"):
-        with st.spinner("Analyzing..."):
-            time.sleep(1.5)
-            st.markdown('<div class="resolved-badge">✓ Reconcile Complete: Logical Flow Restored</div>', unsafe_allow_html=True)
+    # Button
+    if st.button("⚖️ Analyze Manuscript"):
+        st.session_state["api_error"] = None
+        try:
+            # Step 1: Upload to her API
+            files = {"file": ("manuscript.txt", manuscript_text.encode("utf-8"), "text/plain")}
+            data = {"title": "My Novel", "author": "User"}
+            upload_resp = requests.post("http://127.0.0.1:8000/api/v1/analyze", files=files, data=data, timeout=10)
+            
+            if upload_resp.status_code == 200:
+                st.session_state["job_id"] = upload_resp.json().get("job_id")
+                
+                # Step 2: Poll the status
+                with st.spinner("Consulting the Astrolabe..."):
+                    time.sleep(2)  # Initial wait
+                    while True:
+                        status_resp = requests.get(f"http://127.0.0.1:8000/api/v1/analyze/{st.session_state['job_id']}/status")
+                        if status_resp.status_code == 200:
+                            status = status_resp.json().get("status")
+                            if status == "completed":
+                                break
+                            elif status == "failed":
+                                st.session_state["api_error"] = "Analysis failed. Check backend."
+                                break
+                            else:
+                                time.sleep(2)  # Wait more
+                
+                # Step 3: Get the results
+                if status == "completed":
+                    results_resp = requests.get(f"http://127.0.0.1:8000/api/v1/analyze/{st.session_state['job_id']}/results")
+                    if results_resp.status_code == 200:
+                        backend_data = results_resp.json()
+                        
+                        # Convert her backend data to fit our UI
+                        violations = backend_data.get("violations", [])
+                        score = max(0, 100 - (len(violations) * 15))
+                        
+                        formatted_fallacies = []
+                        for v in violations:
+                            formatted_fallacies.append({
+                                "type": v.get("type", "Violation").replace("_", " ").title(),
+                                "severity": "high" if v.get("severity") == "ERROR" else "low",
+                                "location": f"Chapter {v.get('conflicting_facts', [{}])[0].get('chapter', '?')}",
+                                "quote": v.get("conflicting_facts", [{}])[0].get("text", ""),
+                                "explanation": v.get("description", ""),
+                                "suggestion": v.get("suggested_fix", "")
+                            })
+                        
+                        st.session_state["analysis_data"] = {
+                            "overall_score": score,
+                            "fallacies": formatted_fallacies
+                        }
+            else:
+                st.session_state["api_error"] = f"Upload failed: {upload_resp.status_code}"
+        except Exception as e:
+            st.session_state["api_error"] = f"Cannot connect to backend: {e}"
 
-with col2:
-    st.markdown("## 📝 Linter Callouts")
+    if st.session_state["api_error"]:
+        st.error(st.session_state["api_error"])
     
-    # Editorial Notes
-    st.markdown("""
-    <div class="editorial-note">
-        <strong>🚩 Causal Slip:</strong>
-        <p>Chapter II states brother is deceased. Adjust timeline to avoid contradiction.</p>
-        <p><i>"Consider a gentle revision..."</i></p>
-    </div>
-    """, unsafe_allow_html=True)
+    if st.session_state["analysis_data"]:
+        raw_text = manuscript_text
+        annotated_text = html.escape(raw_text)
+        for item in st.session_state["analysis_data"]["fallacies"]:
+            quote = item.get("quote", "").strip()
+            if quote and quote in raw_text:
+                annotated_text = annotated_text.replace(html.escape(quote), f'<span style="text-decoration: underline wavy var(--amber-red); background: rgba(166, 75, 30, 0.15); padding: 2px 4px;">{html.escape(quote)}</span>')
+        st.markdown(f'<div style="margin-top: 20px; padding: 15px; border: 1px dashed var(--amber-red); background: #EDE2C8;">{annotated_text}</div>', unsafe_allow_html=True)
+
+# Right Inspector
+with col_inspector:
+    st.markdown('<div class="nav-heading">Narrative Symmetry</div>', unsafe_allow_html=True)
+    current_score = st.session_state["analysis_data"]["overall_score"] if st.session_state["analysis_data"] else 100
+    gauge_deg = (current_score / 100.0) * 360
+    st.markdown(f'<div class="astrolabe-wrapper"><div class="astrolabe-outer-ring" style="background: conic-gradient(var(--olive-green) 0deg {gauge_deg}deg, rgba(166, 75, 30, 0.2) {gauge_deg}deg 360deg);"><div class="astrolabe-inner-core"><div class="astrolabe-score">{current_score}%</div><div class="astrolabe-subtext">Symmetry</div></div></div></div>', unsafe_allow_html=True)
     
-    st.markdown("""
-    <div class="editorial-note" style="border-left-color: var(--olive-green);">
-        <strong>✓ Tone Consistency:</strong>
-        <p>Melancholic tone maintained across 3 chapters.</p>
-    </div>
-    """, unsafe_allow_html=True)
-
-
-# ==========================================
-# 6. RIGHT INSPECTOR (Telemetry Panel)
-# ==========================================
-st.markdown("---")
-st.markdown("## 🧭 Narrative Symmetry Astrolabe")
-
-tele_col1, tele_col2 = st.columns([1, 2])
-
-with tele_col1:
-    st.markdown("""
-    <div class="dial-container">
-        <div class="dial">
-            <div class="dial-inner">
-                <span class="score-text">72%</span>
-                <span class="score-label">Symmetric</span>
-            </div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-    st.caption("Bold Gradient: Olive (Sound) to Amber (Friction).")
-
-with tele_col2:
-    st.markdown("### 📊 Key Readouts")
-    st.markdown("""
-    <div style="font-size: 1.1em;">
-        <p><strong style="color: var(--olive-deep);">Tone Consistency:</strong> <span style="color: var(--olive-deep);">✓ Stable</span></p>
-        <p><strong style="color: var(--bold-amber-deep);">Premise Continuity:</strong> <span style="color: var(--bold-amber-deep);">~ 80%</span></p>
-        <p><strong style="color: var(--bold-amber-deep);">Argument Flow:</strong> <span style="color: var(--bold-amber-deep);">⚠ Friction Detected</span></p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-st.markdown("---")
-st.caption("Lore Linter | A Bold, Old-Paper Typewriter Engine")
+    st.markdown('<div class="nav-heading" style="margin-top: 8px;">Editorial Marginalia</div>', unsafe_allow_html=True)
+    if st.session_state["analysis_data"]:
+        for item in st.session_state["analysis_data"]["fallacies"]:
+            sev_class = "high-severity" if item.get("severity") == "high" else "low-severity"
+            st.markdown(f'<div class="editorial-card {sev_class}"><div class="card-header"><span class="card-type">{html.escape(item.get("type", "Violation"))}</span><span class="card-location">{html.escape(item.get("location", ""))}</span></div><div class="card-quote">"{html.escape(item.get("quote", ""))}"</div><div class="card-explanation">{html.escape(item.get("explanation", ""))}</div><div class="card-suggestion"><strong>Proposal:</strong> {html.escape(item.get("suggestion", ""))}</div></div>', unsafe_allow_html=True)
+    else:
+        st.markdown('<div style="font-size: 0.82rem; color: var(--olive-green); font-style: italic; padding: 8px 0;">Press Analyze Manuscript to awaken the linter.</div>', unsafe_allow_html=True)
